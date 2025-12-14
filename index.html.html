@@ -1,0 +1,883 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>AllEase - überall, sicher essen</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- QuaggaJS für echten Barcode-Scanner -->
+    <script src="https://cdn.jsdelivr.net/npm/quagga@0.12.1/dist/quagga.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .app-container {
+            max-width: 500px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        
+        /* HEADER */
+        .header {
+            background: linear-gradient(135deg, #4CAF50, #2E7D32);
+            color: white;
+            padding: 25px 20px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 1.8rem;
+            margin-bottom: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        
+        .subtitle {
+            opacity: 0.9;
+            font-size: 0.95rem;
+        }
+        
+        /* TABS */
+        .tabs {
+            display: flex;
+            background: #f8f9fa;
+            border-bottom: 2px solid #4CAF50;
+        }
+        
+        .tab {
+            flex: 1;
+            padding: 18px 10px;
+            text-align: center;
+            background: none;
+            border: none;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+            color: #666;
+        }
+        
+        .tab span {
+            font-size: 1.3rem;
+        }
+        
+        .tab.active {
+            background: #4CAF50;
+            color: white;
+            font-weight: bold;
+        }
+        
+        .tab:hover:not(.active) {
+            background: #e8f5e9;
+        }
+        
+        /* CONTENT */
+        .content {
+            display: none;
+            padding: 0;
+            min-height: 400px;
+        }
+        
+        .content.active {
+            display: block;
+        }
+        
+        /* SCANNER PAGE */
+        .scanner-container {
+            padding: 20px;
+        }
+        
+        #scanner-viewport {
+            width: 100%;
+            height: 300px;
+            background: #000;
+            border-radius: 15px;
+            overflow: hidden;
+            margin-bottom: 20px;
+            position: relative;
+        }
+        
+        #scanner-viewport video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .scanner-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: 2px solid #4CAF50;
+            box-shadow: inset 0 0 0 2px rgba(76, 175, 80, 0.5);
+        }
+        
+        .scanner-controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .btn {
+            flex: 1;
+            padding: 15px;
+            border: none;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: all 0.3s;
+        }
+        
+        .btn-primary {
+            background: #4CAF50;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #3d8b40;
+            transform: translateY(-2px);
+        }
+        
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #333;
+        }
+        
+        .btn-secondary:hover {
+            background: #e0e0e0;
+        }
+        
+        .scan-result {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-top: 20px;
+            border: 2px solid #e0e0e0;
+            display: none;
+        }
+        
+        .scan-result.active {
+            display: block;
+            animation: slideIn 0.5s ease;
+        }
+        
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        /* RESTAURANT PAGE */
+        .restaurant-container {
+            padding: 20px;
+        }
+        
+        .search-container {
+            background: white;
+            padding: 15px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+        }
+        
+        .search-box {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .search-input {
+            flex: 1;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 1rem;
+            transition: border 0.3s;
+        }
+        
+        .search-input:focus {
+            outline: none;
+            border-color: #4CAF50;
+        }
+        
+        .search-btn {
+            background: #2196F3;
+            color: white;
+            border: none;
+            padding: 0 25px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background 0.3s;
+        }
+        
+        .search-btn:hover {
+            background: #0b7dda;
+        }
+        
+        .filters {
+            display: flex;
+            gap: 10px;
+            overflow-x: auto;
+            padding-bottom: 10px;
+        }
+        
+        .filter-btn {
+            padding: 10px 15px;
+            background: #e8f5e9;
+            border: 2px solid #4CAF50;
+            border-radius: 25px;
+            color: #2E7D32;
+            font-weight: 600;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: all 0.3s;
+        }
+        
+        .filter-btn:hover {
+            background: #4CAF50;
+            color: white;
+        }
+        
+        .restaurant-list {
+            max-height: 400px;
+            overflow-y: auto;
+            padding-right: 5px;
+        }
+        
+        .restaurant-card {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+            transition: all 0.3s;
+        }
+        
+        .restaurant-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.12);
+        }
+        
+        .restaurant-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .restaurant-name {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: #333;
+        }
+        
+        .allergy-score {
+            background: #4CAF50;
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 0.9rem;
+        }
+        
+        .restaurant-info {
+            color: #666;
+            margin: 5px 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 10px;
+        }
+        
+        .tag {
+            background: #e3f2fd;
+            color: #1565c0;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 0.85rem;
+        }
+        
+        /* FOOTER */
+        .footer {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+            font-size: 0.9rem;
+            border-top: 1px solid #e0e0e0;
+            background: #f8f9fa;
+        }
+        
+        /* LOADING */
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+        
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #4CAF50;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* SCROLLBAR */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: #4CAF50;
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: #3d8b40;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- HEADER -->
+        <div class="header">
+            <h1>🍃 AllEase</h1>
+            <div class="subtitle">überall, sicher essen!</div>
+        </div>
+        
+        <!-- TABS -->
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('scanner')">
+                <span>📦</span>
+                <div>Scanner</div>
+            </button>
+            <button class="tab" onclick="switchTab('restaurants')">
+                <span>🍽️</span>
+                <div>Restaurants</div>
+            </button>
+        </div>
+        
+        <!-- SCANNER CONTENT -->
+        <div id="scanner" class="content active">
+            <div class="scanner-container">
+                <h2 style="margin-bottom: 20px; color: #333;">Produkt Scanner</h2>
+                
+                <div id="scanner-viewport">
+                    <div class="scanner-overlay"></div>
+                    <!-- Quagga fügt hier das Video ein -->
+                </div>
+                
+                <div class="scanner-controls">
+                    <button class="btn btn-primary" onclick="startScanner()">
+                        <span>🔍</span> Scanner starten
+                    </button>
+                    <button class="btn btn-secondary" onclick="stopScanner()">
+                        <span>⏹️</span> Stoppen
+                    </button>
+                </div>
+                
+                <div style="text-align: center; margin: 20px 0;">
+                    <p style="color: #666; margin-bottom: 10px;">Oder simulieren:</p>
+                    <button class="btn btn-secondary" onclick="simulateScan()" style="padding: 12px 25px;">
+                        🧪 Test-Scan simulieren
+                    </button>
+                </div>
+                
+                <!-- SCAN ERGEBNISSE -->
+                <div id="scan-result" class="scan-result">
+                    <!-- Hier kommen die Ergebnisse -->
+                </div>
+            </div>
+        </div>
+        
+        <!-- RESTAURANTS CONTENT -->
+        <div id="restaurants" class="content">
+            <div class="restaurant-container">
+                <h2 style="margin-bottom: 20px; color: #333;">Restaurant Finder</h2>
+                
+                <div class="search-container">
+                    <div class="search-box">
+                        <input type="text" class="search-input" id="location-input" 
+                               placeholder="Berlin, München oder Standort..." value="Berlin">
+                        <button class="search-btn" onclick="findRestaurants()">Suchen</button>
+                    </div>
+                    
+                    <div class="filters">
+                        <button class="filter-btn" onclick="filterByAllergy('gluten')">🧬 Glutenfrei</button>
+                        <button class="filter-btn" onclick="filterByAllergy('lactose')">🥛 Laktosefrei</button>
+                        <button class="filter-btn" onclick="filterByAllergy('nuts')">🥜 Nussfrei</button>
+                        <button class="filter-btn" onclick="filterByAllergy('vegan')">🌱 Vegan</button>
+                        <button class="filter-btn" onclick="showAllRestaurants()">Alle</button>
+                    </div>
+                </div>
+                
+                <div class="restaurant-list" id="restaurant-list">
+                    <!-- Restaurants werden hier geladen -->
+                    <div class="loading">
+                        <div class="spinner"></div>
+                        <p>Lade Restaurants...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- FOOTER -->
+        <div class="footer">
+            <div>🍃 AllEase• Version 1.0 • Überall sicher essen!</div>
+        </div>
+    </div>
+
+    <script>
+        // ==================== GLOBALE VARIABLEN ====================
+        let scannerActive = false;
+        let currentRestaurants = [];
+        
+        // ==================== TAB FUNKTIONEN ====================
+        function switchTab(tabName) {
+            // Tabs deaktivieren
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelectorAll('.content').forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            // Scanner stoppen wenn wir wechseln
+            if (tabName !== 'scanner') {
+                stopScanner();
+            }
+            
+            // Aktiven Tab setzen
+            document.querySelector(`.tab[onclick*="${tabName}"]`).classList.add('active');
+            document.getElementById(tabName).classList.add('active');
+            
+            // Restaurant-Daten laden wenn Tab aktiv wird
+            if (tabName === 'restaurants' && currentRestaurants.length === 0) {
+                loadRestaurants();
+            }
+        }
+        
+        // ==================== SCANNER FUNKTIONEN ====================
+        function startScanner() {
+            if (scannerActive) return;
+            
+            scannerActive = true;
+            const scannerViewport = document.getElementById('scanner-viewport');
+            
+            // Scanner-Overlay leeren
+            scannerViewport.innerHTML = '<div class="scanner-overlay"></div>';
+            
+            // Quagga Scanner initialisieren
+            Quagga.init({
+                inputStream: {
+                    name: "Live",
+                    type: "LiveStream",
+                    target: scannerViewport,
+                    constraints: {
+                        facingMode: "environment" // Rückkamera
+                    }
+                },
+                decoder: {
+                    readers: [
+                        "ean_reader",  // EAN-13
+                        "ean_8_reader",
+                        "upc_reader",
+                        "code_128_reader"
+                    ]
+                },
+                locate: true
+            }, function(err) {
+                if (err) {
+                    console.error("Scanner Fehler:", err);
+                    alert("Scanner konnte nicht gestartet werden. Simuliere stattdessen.");
+                    simulateScan();
+                    return;
+                }
+                
+                console.log("Scanner erfolgreich initialisiert");
+                Quagga.start();
+                
+                // Barcode erkannt
+                Quagga.onDetected(function(result) {
+                    const code = result.codeResult.code;
+                    console.log("Barcode erkannt:", code);
+                    processBarcode(code);
+                });
+            });
+            
+            // UI aktualisieren
+            document.querySelector('.scanner-controls .btn-primary').innerHTML = '<span>🟢</span> Scanne...';
+        }
+        
+        function stopScanner() {
+            if (scannerActive) {
+                Quagga.stop();
+                scannerActive = false;
+                document.querySelector('.scanner-controls .btn-primary').innerHTML = '<span>🔍</span> Scanner starten';
+            }
+        }
+        
+        function processBarcode(barcode) {
+            stopScanner();
+            
+            // Simulierte Produktdatenbank
+            const productDatabase = {
+                "40111216": { // Alnatura Haferflocken
+                    name: "Bio Haferflocken zart",
+                    brand: "Alnatura",
+                    allergens: [],
+                    safe: true,
+                    ingredients: "Vollkornhaferflocken",
+                    image: "🥣"
+                },
+                "4008456012194": { // Studentenfutter
+                    name: "Studentenfutter",
+                    brand: "Seeberger",
+                    allergens: ["Nüsse", "Erdnüsse", "Mandeln"],
+                    safe: false,
+                    ingredients: "Rosinen, Erdnüsse, Mandeln, Cashews",
+                    image: "🥜"
+                },
+                "7611612222134": { // Ovomaltine
+                    name: "Ovomaltine crunchy cream",
+                    brand: "Wander",
+                    allergens: ["Milch", "Soja", "Gluten"],
+                    safe: false,
+                    ingredients: "Zucker, Palmöl, Weizenmehl, Magermilchpulver",
+                    image: "🍫"
+                },
+                "4008469012345": { // Bio Reiswaffeln
+                    name: "Bio Reiswaffeln",
+                    brand: "dmBio",
+                    allergens: [],
+                    safe: true,
+                    ingredients: "Vollkornreis",
+                    image: "🍘"
+                }
+            };
+            
+            // Produkt finden oder unbekannt
+            const product = productDatabase[barcode] || {
+                name: "Unbekanntes Produkt",
+                brand: "Barcode: " + barcode,
+                allergens: ["Unbekannt - manuell prüfen!"],
+                safe: false,
+                ingredients: "Unbekannt",
+                image: "❓"
+            };
+            
+            // Ergebnis anzeigen
+            showScanResult(product);
+        }
+        
+        function simulateScan() {
+            stopScanner();
+            
+            // Zufälligen Barcode auswählen
+            const barcodes = ["40111216", "4008456012194", "7611612222134", "4008469012345"];
+            const randomBarcode = barcodes[Math.floor(Math.random() * barcodes.length)];
+            
+            // Scan simulieren
+            console.log("Simulierter Scan:", randomBarcode);
+            processBarcode(randomBarcode);
+        }
+        
+        function showScanResult(product) {
+            const resultDiv = document.getElementById('scan-result');
+            
+            resultDiv.innerHTML = `
+                <div style="text-align: center; margin-bottom: 20px; font-size: 4rem;">
+                    ${product.image}
+                </div>
+                <h3 style="color: ${product.safe ? '#4CAF50' : '#ff4444'}; margin-bottom: 10px;">
+                    ${product.safe ? '✅ SICHER' : '⚠️ ACHTUNG'}
+                </h3>
+                <h2 style="margin-bottom: 5px;">${product.name}</h2>
+                <p style="color: #666; margin-bottom: 15px;">Marke: ${product.brand}</p>
+                
+                <div style="background: ${product.safe ? '#e8f5e9' : '#ffebee'}; 
+                     padding: 15px; border-radius: 10px; margin: 20px 0;">
+                    <strong>${product.safe ? '✅ Enthält KEINE häufigen Allergene' : '⚠️ Enthält folgende Allergene:'}</strong>
+                    
+                    ${!product.safe ? `
+                        <div style="margin-top: 10px;">
+                            ${product.allergens.map(allergen => `
+                                <span style="display: inline-block; background: #ff4444; color: white; 
+                                      padding: 5px 10px; margin: 5px; border-radius: 15px;">
+                                    ${allergen}
+                                </span>
+                            `).join('')}
+                        </div>
+                    ` : ''}
+                </div>
+                
+                <div style="margin: 20px 0;">
+                    <strong>Zutaten:</strong>
+                    <p style="color: #666; margin-top: 5px;">${product.ingredients}</p>
+                </div>
+                
+                <div style="display: flex; gap: 10px; margin-top: 25px;">
+                    <button onclick="logReaction('good')" 
+                            style="flex: 1; background: #4CAF50; color: white; border: none; 
+                                   padding: 12px; border-radius: 8px; cursor: pointer; font-weight: bold;">
+                        👍 Gut vertragen
+                    </button>
+                    <button onclick="logReaction('bad')" 
+                            style="flex: 1; background: #ff4444; color: white; border: none; 
+                                   padding: 12px; border-radius: 8px; cursor: pointer; font-weight: bold;">
+                        🤢 Probleme
+                    </button>
+                </div>
+            `;
+            
+            resultDiv.classList.add('active');
+            
+            // Automatisch nach oben scrollen
+            resultDiv.scrollIntoView({ behavior: 'smooth' });
+        }
+        
+        function logReaction(reaction) {
+            alert(`Danke! Deine Reaktion wurde ${reaction === 'good' ? 'als positiv' : 'als negativ'} gespeichert.`);
+        }
+        
+        // ==================== RESTAURANT FUNKTIONEN ====================
+        function loadRestaurants() {
+            const restaurantList = document.getElementById('restaurant-list');
+            
+            // RESTAURANT DATENBANK
+            currentRestaurants = [
+                {
+                    id: 1,
+                    name: "Green Delight Restaurant",
+                    address: "Main Street 12, 10115 Berlin",
+                    distance: "1.2 km",
+                    rating: 4.7,
+                    reviews: 128,
+                    allergyScore: 98,
+                    tags: ["🌱 100% Vegan", "🧬 Glutenfrei", "📋 Allergie-Menü"],
+                    allergies: ["gluten", "vegan"],
+                    phone: "030 12345678",
+                    openNow: true,
+                    price: "€€",
+                    waitTime: "15-25 min"
+                },
+                {
+                    id: 2,
+                    name: "Bio Bistro & Cafe",
+                    address: "Parkallee 5, 10115 Berlin",
+                    distance: "2.1 km",
+                    rating: 4.5,
+                    reviews: 89,
+                    allergyScore: 95,
+                    tags: ["🥛 Laktosefrei", "🥜 Nussfrei", "🌿 Bio zertifiziert"],
+                    allergies: ["lactose", "nuts"],
+                    phone: "030 87654321",
+                    openNow: true,
+                    price: "€€€",
+                    waitTime: "20-30 min"
+                },
+                {
+                    id: 3,
+                    name: "Pizza Celia Glutenfrei",
+                    address: "Mittelstraße 33, 10117 Berlin",
+                    distance: "0.8 km",
+                    rating: 4.3,
+                    reviews: 42,
+                    allergyScore: 92,
+                    tags: ["🧀 Laktosefreier Käse", "🌾 Dinkelteig", "🏆 Zertifiziert"],
+                    allergies: ["gluten", "lactose"],
+                    phone: "030 5556677",
+                    openNow: false,
+                    price: "€€",
+                    waitTime: "25-35 min"
+                },
+                {
+                    id: 4,
+                    name: "Asia Wok Garden",
+                    address: "Friedrichstraße 89, 10117 Berlin",
+                    distance: "1.5 km",
+                    rating: 4.6,
+                    reviews: 156,
+                    allergyScore: 88,
+                    tags: ["🥜 Erdnussfrei", "🦐 Schalentierfrei", "🥢 Asiatisch"],
+                    allergies: ["peanuts"],
+                    phone: "030 9988776",
+                    openNow: true,
+                    price: "€",
+                    waitTime: "10-20 min"
+                }
+            ];
+            
+            // Restaurants anzeigen
+            renderRestaurants(currentRestaurants);
+        }
+        
+        function renderRestaurants(restaurants) {
+            const restaurantList = document.getElementById('restaurant-list');
+            
+            if (restaurants.length === 0) {
+                restaurantList.innerHTML = `
+                    <div class="loading">
+                        <div style="font-size: 3rem; margin-bottom: 15px;">🔍</div>
+                        <h3>Keine Restaurants gefunden</h3>
+                        <p style="color: #666; margin-top: 10px;">Versuche einen anderen Suchbegriff</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            restaurantList.innerHTML = restaurants.map(restaurant => `
+                <div class="restaurant-card" onclick="showRestaurantDetails(${restaurant.id})">
+                    <div class="restaurant-header">
+                        <div class="restaurant-name">
+                            ${restaurant.name}
+                            ${restaurant.openNow 
+                                ? '<span style="color: #4CAF50; font-size: 0.8rem; margin-left: 8px;">● Jetzt geöffnet</span>' 
+                                : '<span style="color: #ff4444; font-size: 0.8rem; margin-left: 8px;">● Geschlossen</span>'
+                            }
+                        </div>
+                        <div class="allergy-score" style="background: ${getScoreColor(restaurant.allergyScore)}">
+                            ${restaurant.allergyScore}%
+                        </div>
+                    </div>
+                    
+                    <div class="restaurant-info">
+                        📍 ${restaurant.distance} · ${restaurant.address}
+                    </div>
+                    
+                    <div class="restaurant-info">
+                        ⭐ ${restaurant.rating} (${restaurant.reviews} Bewertungen)
+                        <span style="margin-left: 15px;">⏱️ ${restaurant.waitTime}</span>
+                    </div>
+                    
+                    <div class="tags">
+                        ${restaurant.tags.map(tag => `<span class="tag">${tag}</span>`).join('')}
+                    </div>
+                    
+                    <div style="margin-top: 15px; display: flex; justify-content: space-between;">
+                        <span style="color: #333; font-weight: bold;">${restaurant.price}</span>
+                        <button onclick="callRestaurant('${restaurant.phone}'); event.stopPropagation();" 
+                                style="background: #4CAF50; color: white; border: none; 
+                                       padding: 8px 15px; border-radius: 6px; cursor: pointer;">
+                            📞 ${restaurant.phone}
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        function getScoreColor(score) {
+            if (score >= 95) return '#4CAF50';
+            if (score >= 90) return '#8BC34A';
+            if (score >= 85) return '#FFC107';
+            if (score >= 80) return '#FF9800';
+            return '#FF5722';
+        }
+        
+        function findRestaurants() {
+            const searchTerm = document.getElementById('location-input').value.toLowerCase();
+            
+            if (!searchTerm.trim()) {
+                alert("Bitte einen Ort eingeben!");
+                return;
+            }
+            
+            // Filtere Restaurants nach Suchbegriff
+            const filtered = currentRestaurants.filter(restaurant => 
+                restaurant.name.toLowerCase().includes(searchTerm) ||
+                restaurant.address.toLowerCase().includes(searchTerm) ||
+                restaurant.tags.some(tag => tag.toLowerCase().includes(searchTerm))
+            );
+            
+            renderRestaurants(filtered);
+        }
+        
+        function filterByAllergy(allergy) {
+            const filtered = currentRestaurants.filter(restaurant => 
+                restaurant.allergies.includes(allergy)
+            );
+            
+            renderRestaurants(filtered);
+        }
+        
+        function showAllRestaurants() {
+            renderRestaurants(currentRestaurants);
+        }
+        
+        function showRestaurantDetails(id) {
+            const restaurant = currentRestaurants.find(r => r.id === id);
+            
+            if (!restaurant) return;
+            
+            alert(`🏆 ${restaurant.name}\n\n` +
+                  `📍 ${restaurant.address}\n` +
+                  `📞 ${restaurant.phone}\n` +
+                  `⭐ ${restaurant.rating}/5 (${restaurant.reviews} Bewertungen)\n` +
+                  `🍃 Allergie-Score: ${restaurant.allergyScore}%\n\n` +
+                  `Besonderheiten:\n${restaurant.tags.join('\n')}`);
+        }
+        
+        function callRestaurant(phone) {
+            alert(`📞 Anruf an: ${phone}\n\nIn einer echten App würde sich jetzt die Telefon-App öffnen.`);
+        }
+        
+        // ==================== INITIALISIERUNG ====================
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log("AllergieGenie App gestartet!");
+            
+            // Restaurant-Daten laden
+            setTimeout(loadRestaurants, 500);
+            
+            // Enter-Taste für Suche
+            document.getElementById('location-input').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    findRestaurants();
+                }
+            });
+        });
+        
+        // Scanner stoppen wenn Seite verlassen
+        window.addEventListener('beforeunload', stopScanner);
+    </script>
+</body>
+</html>
